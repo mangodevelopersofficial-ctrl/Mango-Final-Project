@@ -3,8 +3,9 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized(); // Ensures Flutter bindings are initialized before running app.
-  await OneSignal.shared.setAppId("5e423775-67c6-42de-8a63-d2e6bbfa7219");  // Initialize OneSignal
+  WidgetsFlutterBinding.ensureInitialized(); 
+  // OneSignal Initialize
+  await OneSignal.shared.setAppId("5e423775-67c6-42de-8a63-d2e6bbfa7219");  
   runApp(MyApp());
 }
 
@@ -12,39 +13,41 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter WebView App',
-      home: WebViewApp(initialUrl: 'https://flutter.dev'), // Provide an initial URL
+      debugShowCheckedModeBanner: false, // Debug banner hatane ke liye
+      title: 'Kitb PK App',
+      home: WebViewPage(initialUrl: 'https://www.kitb.pk'), // Aapka Link Yahan Lag Gaya
     );
   }
 }
 
-class WebViewApp extends StatefulWidget {
-  final String initialUrl;  // Correctly declared as a class member variable
-
-  WebViewApp({required this.initialUrl});  // Constructor to initialize the initialUrl
+class WebViewPage extends StatefulWidget {
+  final String initialUrl;
+  WebViewPage({required this.initialUrl});
 
   @override
-  State<WebViewApp> createState() => _WebViewAppState();
+  State<WebViewPage> createState() => _WebViewPageState();
 }
 
-class _WebViewAppState extends State<WebViewApp> {
+class _WebViewPageState extends State<WebViewPage> {
   late final WebViewController _controller;
 
   @override
   void initState() {
     super.initState();
-    // WebView initialization to ensure WebView is ready when the app starts
+    // WebView Controller Setup
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..loadRequest(Uri.parse(widget.initialUrl));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Flutter WebView App'),
+        title: const Text('Kitb PK'), // App ka Header Name
+        backgroundColor: Colors.blue,
       ),
-      body: WebViewApp(
-        initialUrl: widget.initialUrl,  // Use the initialUrl passed into the widget
-      ),
+      body: WebViewWidget(controller: _controller), // Corrected WebView implementation
     );
   }
 }
