@@ -1,0 +1,58 @@
+name: Mango Final Production Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_name:
+        required: true
+      package_name:
+        required: true
+      web_url:
+        default: 'none'
+      splash_time:
+        default: '3000'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Decode Keystore
+        # Iske liye Secrets mein KEYSTORE_BASE64 hona lazmi hai
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > release-key.jks
+
+      - name: Inject Dashboard Assets
+        run: |
+          # Dashboard se aayi hui files ko app folder mein move karein
+          [ -f icon.png ] && mv icon.png app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+          [ -f splash.png ] && mv splash.png app/src/main/res/drawable/splash.png
+          [ -f index.html ] && mv index.html app/src/main/assets/index.html
+
+      - name: Build Signed AAB
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:bundleRelease \
+            -Pandroid.injected.signing.store.file=$(pwd)/release-key.jks \
+            -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} \
+            -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} \
+            -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }}
+
+      - name: Collect Final AAB
+        if: always()
+        run: |
+          mkdir output
+          find . -name "*.aab" -exec cp {} output/ \;
+
+      - name: Upload to Dashboard
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.event.inputs.app_name }}-Ready-To-PlayStore
+          path: output/
