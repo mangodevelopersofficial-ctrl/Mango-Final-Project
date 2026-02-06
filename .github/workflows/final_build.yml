@@ -1,24 +1,28 @@
-name: Mango Final Build
+name: Mango Mega Build Pro
 
 on:
   workflow_dispatch:
     inputs:
       app_name:
-        description: 'App Name'
-        required: false
+        description: 'App Display Name'
         default: 'MangoApp'
       package_name:
-        description: 'Package Name'
-        required: false
-        default: 'com.mango.app'
+        description: 'App Package ID'
+        default: 'com.mango.mega'
       web_url:
-        description: 'Web URL'
-        required: false
+        description: 'Target Website'
         default: 'none'
       splash_time:
-        description: 'Splash Time'
-        required: false
+        description: 'Splash Duration'
         default: '3000'
+      use_location:
+        default: 'true'
+      use_camera:
+        default: 'true'
+      use_mic:
+        default: 'true'
+      use_notif:
+        default: 'true'
 
 jobs:
   build:
@@ -27,23 +31,50 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Setup App Assets
+        run: |
+          # Icon aur Splash ko sahi folder mein move karna
+          mkdir -p android/app/src/main/res/mipmap-xxxhdpi
+          mkdir -p android/app/src/main/res/drawable
+          [ -f "icon.png" ] && mv icon.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+          [ -f "splash.png" ] && mv splash.png android/app/src/main/res/drawable/splash_screen.png
+
+      - name: Inject Master Permissions
+        run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          
+          # Location (GPS & Network)
+          if [ "${{ github.event.inputs.use_location }}" == "true" ]; then
+            sed -i '/<manifest/a \    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />' $MANIFEST
+            sed -i '/<manifest/a \    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />' $MANIFEST
+          fi
+          
+          # Camera & Microphone (Social/Video Apps)
+          if [ "${{ github.event.inputs.use_camera }}" == "true" ]; then
+            sed -i '/<manifest/a \    <uses-permission android:name="android.permission.CAMERA" />' $MANIFEST
+            sed -i '/<manifest/a \    <uses-feature android:name="android.hardware.camera" android:required="false" />' $MANIFEST
+          fi
+          
+          if [ "${{ github.event.inputs.use_mic }}" == "true" ]; then
+            sed -i '/<manifest/a \    <uses-permission android:name="android.permission.RECORD_AUDIO" />' $MANIFEST
+          fi
+          
+          # Storage & Calls (Files & Support)
+          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />' $MANIFEST
+          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" />' $MANIFEST
+          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.CALL_PHONE" />' $MANIFEST
+          
+          # Internet & Network State (Always Required)
+          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.INTERNET" />' $MANIFEST
+          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />' $MANIFEST
+
+      - name: Set Java & Gradle
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Decode Keystore
-        # Settings > Secrets mein KEYSTORE_BASE64 hona chahiye
-        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > release-key.jks
-
-      - name: Inject Assets
-        run: |
-          [ -f icon.png ] && mv icon.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png || echo "No icon"
-          [ -f splash.png ] && mv splash.png android/app/src/main/res/drawable/splash.png || echo "No splash"
-          [ -f index.html ] && mv index.html assets/index.html || echo "No html"
-
-      - name: Build Signed AAB
+      - name: Build Signed Bundle (AAB)
         run: |
           chmod +x gradlew
           ./gradlew :app:bundleRelease \
@@ -52,8 +83,8 @@ jobs:
             -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} \
             -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }}
 
-      - name: Upload Result
+      - name: Export Final App
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ github.event.inputs.app_name }}-AAB
-          path: "**/*.aab"
+          name: ${{ github.event.inputs.app_name }}-Mega-Build
+          path: android/app/build/outputs/bundle/release/*.aab
