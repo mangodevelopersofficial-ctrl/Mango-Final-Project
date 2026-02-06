@@ -23,18 +23,17 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: 'gradle'
 
       - name: Decode Keystore
-        # Iske liye Secrets mein KEYSTORE_BASE64 hona lazmi hai
+        # Iske liye Secrets mein KEYSTORE_BASE64 lazmi hona chahiye
         run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > release-key.jks
 
-      - name: Inject Dashboard Assets
+      - name: Inject Assets from Dashboard
         run: |
-          # Dashboard se aayi hui files ko app folder mein move karein
-          [ -f icon.png ] && mv icon.png app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
-          [ -f splash.png ] && mv splash.png app/src/main/res/drawable/splash.png
-          [ -f index.html ] && mv index.html app/src/main/assets/index.html
+          # Dashboard se aayi hui images aur html ko sahi folders mein move karna
+          [ -f icon.png ] && mv icon.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png || echo "No icon"
+          [ -f splash.png ] && mv splash.png android/app/src/main/res/drawable/splash.png || echo "No splash"
+          [ -f index.html ] && mv index.html assets/index.html || echo "No html"
 
       - name: Build Signed AAB
         run: |
@@ -45,14 +44,14 @@ jobs:
             -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} \
             -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }}
 
-      - name: Collect Final AAB
+      - name: Collect AAB
         if: always()
         run: |
-          mkdir output
-          find . -name "*.aab" -exec cp {} output/ \;
+          mkdir final_files
+          find . -name "*.aab" -exec cp {} final_files/ \;
 
-      - name: Upload to Dashboard
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ github.event.inputs.app_name }}-Ready-To-PlayStore
-          path: output/
+          name: ${{ github.event.inputs.app_name }}-Signed
+          path: final_files/
