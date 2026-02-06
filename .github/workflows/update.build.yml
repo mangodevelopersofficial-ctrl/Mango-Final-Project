@@ -1,22 +1,22 @@
-name: Mango Final Production Build
+name: Mango Final Build
 
 on:
   workflow_dispatch:
     inputs:
       app_name:
-        description: 'App Name'
-        required: true
-        default: 'MangoApp'
+        description: 'Name'
+        required: false
+        default: 'App'
       package_name:
-        description: 'Package Name'
-        required: true
+        description: 'Package'
+        required: false
         default: 'com.mango.app'
       web_url:
-        description: 'Web URL'
+        description: 'URL'
         required: false
         default: 'none'
       splash_time:
-        description: 'Splash Screen Time'
+        description: 'Time'
         required: false
         default: '3000'
 
@@ -24,44 +24,14 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 17
+      - uses: actions/checkout@v4
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: 'gradle'
 
-      - name: Decode Keystore
-        # Iske liye GitHub Settings > Secrets mein KEYSTORE_BASE64 lazmi daalein
-        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > release-key.jks
-
-      - name: Inject Dashboard Assets
-        run: |
-          # Dashboard se aayi hui files ko unki sahi manzil par bhejna
-          [ -f icon.png ] && mv icon.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png || echo "No icon"
-          [ -f splash.png ] && mv splash.png android/app/src/main/res/drawable/splash.png || echo "No splash image"
-          [ -f index.html ] && mv index.html assets/index.html || echo "No index.html"
-
-      - name: Build Signed AAB
+      - name: Build
         run: |
           chmod +x gradlew
-          ./gradlew :app:bundleRelease \
-            -Pandroid.injected.signing.store.file=$(pwd)/release-key.jks \
-            -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} \
-            -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} \
-            -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }}
-
-      - name: Collect Output
-        if: always()
-        run: |
-          mkdir final_aab
-          find . -name "*.aab" -exec cp {} final_aab/ \;
-
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ github.event.inputs.app_name }}-Ready
-          path: final_aab/
+          ./gradlew :app:bundleRelease
